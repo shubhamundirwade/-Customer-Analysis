@@ -10,6 +10,7 @@ sns.set()
 from sklearn.preprocessing import  StandardScaler
 from scipy.cluster.hierarchy import  dendrogram, linkage
 from sklearn.cluster import  KMeans
+from sklearn.decomposition import PCA
 
 ## Importing dataset
 df_segmentation = pd.read_csv("segmentation data.csv", index_col=0)
@@ -117,3 +118,104 @@ plt.figure(figsize=(10,8) )
 sns.scatterplot(x_axis, y_axis, hue=df_segm_kmeans["Labels"], palette=['g','r','c','m'])
 plt.title("Segmentation K-means")
 plt.show()
+
+#PCA
+pca = PCA()
+pca.fit(segmentation_std)
+
+pca.explained_variance_ratio_
+
+#to select features
+plt.figure(figsize=(12,9))
+plt.plot(range(1,8), pca.explained_variance_ratio_.cumsum(), marker = 'o', linestyle = '--')
+plt.title("Explained Variance by Components")
+plt.xlabel("Number of Components")
+plt.ylabel("Cumulative Explained Variance")
+plt.show()
+
+# selecting features
+pca = PCCA(n_components = 3) # selecting first 3 components as features
+
+pca.fit(segmentation.std)
+
+## PCA Results
+pca.components_
+
+# Creating dataframe for the PCA component
+df_pca_comp = pd.DataFrame(data = pca.components_,
+                           columns = df_segmentation.columns.values,
+                           index = ['Component 1', 'Component 2','Component 3'])
+
+df_pca_comp
+
+# generating heatmap for the dataframe4
+sns.heatmap(df_pca_comp,
+            vmin = -1,
+            vmax = 1,
+            cmap = 'RdBu',
+            annot = True)
+plt.yticks([0,1,2],
+           ['Component 1', 'Component 2', 'Component 3'],
+           rotation = 45,
+           fontsize = 9)
+
+#transofmation to 3 array 
+pca.transform(segmentation_std)
+
+# Scores
+scores_pca = pca.transform(segmentation_std)
+
+## K-means clustering with PCA component
+wcss = []
+for i in range(1,11):
+    kmeans_pca = KMeans(n_clusters = i, init = 'k-means++', random_state=42)
+    kmeans_pca.fit(scores_pca)  #changing the fit values to scores_pca
+    wcss.append(kmeans_pca.inertia_)
+    
+ # Plotting 
+plt.figure(figsize=(10,8))
+plt.plot(range(1,11), wcss, marker = 'o', linestyle = '--')
+plt.xlabel("Number of Clusters")
+plt.ylabel("WCSS")
+plt.title("K-Means with PCA Clustering")
+plt.show()
+
+kmeans_pca = KMeans(n_clusters=4, init='k-means++',random_state=42)
+kmeans_pca.fit(scores_pca)
+
+# K-means clustering with PCA results
+df_segm_pca_kmeans = pd.concat([df_segmentation.reset_index(drop=True), pd.DataFrame(scores_pca)], axis=1)
+df_segm_pca_kmeans.columns.values[-3:] = ['Component 1','Component 2','Component 3']
+df_segm_pca_kmeans["Segment K-means PCA"] = kmeans_pca.labels_
+df_segm_pca_kmeans
+
+df_segm_pca_kmeans_freq = df_segm_pca_kmeans.groupby(['Segment K-means PCA']).mean()
+df_segm_pca_kmeans_freq
+
+
+df_segm_pca_kmeans_freq["N Obs"] = df_segm_pca_kmeans[["Segment K-means PCA", "Sex"]].groupby(["Segment K-means PCA"]).count()
+df_segm_pca_kmeans_freq["Prop Obs"] = df_segm_pca_kmeans_freq["N Obs"] / df_segm_pca_kmeans_freq["N Obs"].sum()
+
+# Renaming the segments
+df_segm_pca_kmeans_freq = df_segm_pca_kmeans_freq.rename({0:"standard",
+                                                          1:"career focused",
+                                                          2: 'fewer oportunities',
+                                                          3: "well-off"})
+df_segm_pca_kmeans_freq
+
+df_segm_pca_kmeans["Legend"] = df_segm_pca_kmeans["Segment K-means PCA"].map({0:"standard",
+                                                                              1:"career focused",
+                                                                              2: 'fewer oportunities',
+                                                                              3: "well-off"})
+
+x_axis = df_segm_pca_kmeans["Component 2"]
+y_axis = df_segm_pca_kmeans["Component 1"]
+plt.figure(figsize=(10,8))
+sns.scatterplot(x_axis, y_axis, hue=df_segm_pca_kmeans["Legend"], palette=["g",'r','c','m'])
+plt.title("Clusters by PCA Components")
+plt.show()
+
+## Saving pickle file
+pickle.dump(scalar, open('scalar.pickle', 'wb'))
+pickle.dump(pca, open('pca.pickle', 'wb'))
+pickle.dump(kmeans_pca, open('kmeans_pca.pickle', 'wb'))
