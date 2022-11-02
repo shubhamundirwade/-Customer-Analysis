@@ -11,6 +11,7 @@ from sklearn.preprocessing import  StandardScaler
 from scipy.cluster.hierarchy import  dendrogram, linkage
 from sklearn.cluster import  KMeans
 from sklearn.decomposition import PCA
+import pickle
 
 ## Importing dataset
 df_segmentation = pd.read_csv("segmentation data.csv", index_col=0)
